@@ -8,9 +8,12 @@ provider:
   runtime: nodejs18.x
 
 functions:
-  api:
-    handler: index.handler
+  sendResponse:
+    handler: api/handler.sendResponse
     events:
       - httpApi:
-          path: /
-          method: get
+          path: /api/results
+          method: post
+          request:
+            schemas:
+              application/json: ${file(./schemas/sendResponse.json)}
