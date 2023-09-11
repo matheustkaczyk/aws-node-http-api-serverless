@@ -1,8 +1,10 @@
 'use strict'
 
+const previousResults = new Map()
+
 function extractBody(event) {
   const body = event?.body;
-  
+
   if (body) {
     return JSON.parse(body);
   }
@@ -31,11 +33,18 @@ module.exports.sendResponse = async (event) => {
   const resultId = randomUUID()
   previousResults.set(resultId, { response: req.body, result })
   console.log(previousResults)
-  res.status(201).json({
-    resultId,
+
+  return {
+    statusCode: 201,
+    body: JSON.stringify({
+      resultId,
     __hypermedia: {
       href: `/results.html`,
       query: { id: resultId }
     }
-  })
+  }),
+  headers: {
+    'Content-Type': 'application/json',
+  }
+  }
 }
