@@ -23,3 +23,5 @@ functions:
       - httpApi:
           path: /api/results/{id}
           method: get
+plugins:
+  - serverless-offline
