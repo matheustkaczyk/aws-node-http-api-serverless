@@ -1,8 +1,14 @@
-'use strict'
+'use strict';
 
-const { randomUUID } = require('crypto');
+const { MongoClient, ObjectId } = require('mongodb');
 
-const previousResults = new Map()
+async function connectDatabase() {
+  const client = new MongoClient(process.env.MONGODB_CONNECTION_STRING);
+
+  const connection = await client.connect();
+
+  return connection.db(process.env.MONGODB_DB_NAME);
+}
 
 function extractBody(event) {
   const body = event?.body;
@@ -19,7 +25,9 @@ function extractBody(event) {
 
 module.exports.sendResponse = async (event) => {
   const { name, answers } = extractBody(event);
-  const correctAnswers = answers.reduce((acc, answer, index) => {
+  const correctQuestions = [3, 1, 0, 2];
+
+  const totalCorrectAnswers = answers.reduce((acc, answer, index) => {
     if (answer === correctQuestions[index]) {
       acc++
     }
@@ -28,21 +36,22 @@ module.exports.sendResponse = async (event) => {
 
   const result = {
     name,
-    correctAnswers,
+    answers,
+    totalCorrectAnswers,
     totalAnswers: answers.length
   }
 
-  const resultId = randomUUID()
-  previousResults.set(resultId, { response: { name, answers }, result })
-  console.log(previousResults)
+  const client = await connectDatabase();
+  const collection = await client.collection('results');
+  const { insertedId } = await collection.insertOne(result);
 
   return {
     statusCode: 201,
     body: JSON.stringify({
-      resultId,
+      resultId: insertedId,
     __hypermedia: {
       href: `/results.html`,
-      query: { id: resultId }
+      query: { id: insertedId }
     }
   }),
   headers: {
@@ -52,7 +61,9 @@ module.exports.sendResponse = async (event) => {
 }
 
 module.exports.getResult = async (event) => {
-  const result = previousResults.get(event.pathParams.id)
+  const client = await connectDatabase();
+  const collection = await client.collection('results');
+  const result = await collection.findOne({ _id: new ObjectId(event.pathParameters.id) });
 
   if (!result) {
     return {
