@@ -2,12 +2,18 @@
 
 const { MongoClient, ObjectId } = require('mongodb');
 
+let connectionPool = null;
+
 async function connectDatabase() {
+  if (connectionPool)  return connectionPool;
+  
   const client = new MongoClient(process.env.MONGODB_CONNECTION_STRING);
 
   const connection = await client.connect();
 
-  return connection.db(process.env.MONGODB_DB_NAME);
+  connectionPool = connection.db(process.env.MONGODB_DB_NAME);
+
+  return connectionPool;
 }
 
 function extractBody(event) {
