@@ -30,6 +30,15 @@ functions:
           request:
             schemas:
               application/json: ${file(./schemas/login.json)}
+  createUser:
+    handler: api/handler.createUser
+    events:
+      - httpApi:
+          path: /api/create-user
+          method: post
+          request:
+            schemas:
+              application/json: ${file(./schemas/createUser.json)}
   sendResponse:
     handler: api/handler.sendResponse
     events:
