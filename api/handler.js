@@ -101,6 +101,37 @@ module.exports.login = async (event) => {
   }
 }
 
+module.exports.createUser = async (event) => {
+  const { username, password } = extractBody(event);
+
+  if (!username || !password) {
+    return {
+      statusCode: 422,
+      body: JSON.stringify({ error: 'Invalid request' }),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }
+  }
+
+  const hashedPass = pbkdf2Sync(password, process.env.SALT, 100000, 64, 'sha512').toString('hex');
+
+  const client = await connectDatabase();
+  const collection = await client.collection('users');
+  const { insertedId } = await collection.insertOne({ username, password: hashedPass });
+
+  return {
+    statusCode: 201,
+    body: JSON.stringify({
+      id: insertedId,
+      username
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  }
+}
+
 module.exports.sendResponse = async (event) => {
   const authResult = await this.authorize(event);
   if (authResult.statusCode === 401) return authResult;
