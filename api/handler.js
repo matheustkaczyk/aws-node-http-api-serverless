@@ -1,6 +1,8 @@
 'use strict';
 
+const { pbkdf2Sync } = require('crypto');
 const { MongoClient, ObjectId } = require('mongodb');
+const { sign, verify } = require('jsonwebtoken');
 
 let connectionPool = null;
 
@@ -29,7 +31,80 @@ function extractBody(event) {
   };
 }
 
+
+module.exports.authorize = async (event) => {
+  const [type, token] = event.headers.Authorization.split(' ');
+
+  if (type !== 'Bearer') {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: 'Invalid token type' }),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }
+  }
+
+  if(!token) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: 'Token not provided' }),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }
+  }
+
+  const decodedToken = verify(token, process.env.JWT_SECRET);
+
+  if (!decodedToken) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: 'Invalid token' }),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }
+  }
+
+  return decodedToken;
+}
+
+module.exports.login = async (event) => {
+  const { username, password } = extractBody(event);
+  const hashedPass = pbkdf2Sync(password, process.env.SALT, 100000, 64, 'sha512').toString('hex');
+
+  const client = await connectDatabase();
+  const collection = await client.collection('users');
+  const user = await collection.findOne({ username, password: hashedPass });
+
+  if (!user) {
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: 'Invalid credentials' }),
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    }
+  }
+
+  const token = sign({ id: user._id, username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      token
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  }
+}
+
 module.exports.sendResponse = async (event) => {
+  const authResult = await this.authorize(event);
+  if (authResult.statusCode === 401) return authResult;
+
   const { name, answers } = extractBody(event);
   const correctQuestions = [3, 1, 0, 2];
 
@@ -67,6 +142,9 @@ module.exports.sendResponse = async (event) => {
 }
 
 module.exports.getResult = async (event) => {
+  const authResult = await this.authorize(event);
+  if (authResult.statusCode === 401) return authResult;
+
   const client = await connectDatabase();
   const collection = await client.collection('results');
   const result = await collection.findOne({ _id: new ObjectId(event.pathParameters.id) });
