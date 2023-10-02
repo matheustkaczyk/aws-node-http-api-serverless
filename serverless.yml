@@ -8,6 +8,8 @@ params:
     dbName: alura-serverless
   dev:
     connectionString: mongodb://localhost:27017/${self:params.default.dbName}
+    salt: FRCTcXr2rxMH2igAvYh5M8tCCe1C5Qho
+    jwtSecret: secret
 
 provider:
   name: aws
@@ -15,8 +17,19 @@ provider:
   environment:
     MONGODB_CONNECTION_STRING: ${param:connectionString}
     MONGODB_DB_NAME: ${param:dbName}
+    SALT: ${param:salt}
+    JWT_SECRET: ${param:jwtSecret}
 
 functions:
+  login:
+    handler: api/handler.sendResponse
+    events:
+      - httpApi:
+          path: /api/login
+          method: post
+          request:
+            schemas:
+              application/json: ${file(./schemas/login.json)}
   sendResponse:
     handler: api/handler.sendResponse
     events:
