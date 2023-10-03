@@ -1,3 +1,5 @@
+const { pbkdf2Sync } = require('crypto');
+
 function buildResponse(statusCode, body, headers) {
     return {
         statusCode,
@@ -9,6 +11,11 @@ function buildResponse(statusCode, body, headers) {
     };
 }
 
+function hashPassword(password) {
+    return pbkdf2Sync(password, process.env.SALT, 100000, 64, 'sha512').toString('hex');
+}
+
 module.exports = {
     buildResponse,
+    hashPassword,
 };
